@@ -76,3 +76,17 @@ class YamlLoadingError(YamlRepoLoaderError):
     def __init__(self, filename: str, error: str) -> None:
         """Call the baseclass with the correct message."""
         super().__init__(f'{filename}: {error}')
+
+
+class DataImportError(FastAsCodeError):
+    """Base class for all DataImporter errors."""
+
+
+class UnknownObjectTypeError(DataImportError):
+    """Error for when a unknown obj-type is being importerd."""
+
+    def __init__(self, obj_id: str, obj_type: str) -> None:
+        """Call the baseclass with the correct message."""
+        super().__init__(
+            f'Unknown object type: "{obj_type}" for resource "{obj_id}".'
+        )
