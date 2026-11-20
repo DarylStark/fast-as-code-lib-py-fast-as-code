@@ -1,0 +1,204 @@
+"""Module with tests for the database."""
+
+import pytest
+from models import MyModel1, MyModel2, MyModel3, SubModel
+
+from fast_as_code import Database
+from fast_as_code.exceptions import (
+    DuplicateIdError,
+    ObjectNotFoundError,
+    UnknownObjectTypeAddedError,
+    UnknownObjectTypeRequestedError,
+)
+
+
+def test_initializing_database(
+    database: Database,
+) -> None:
+    """Test initializing the database class with a dummy model."""
+    assert len(database.get_models()) == 2
+    assert MyModel1 in database.get_models()
+    assert MyModel2 in database.get_models()
+
+
+def test_adding_and_retrieving_data(
+    database: Database,
+) -> None:
+    """Test adding and retrieving data."""
+    obj_1_1 = MyModel1(name='Testname 1')
+    obj_1_2 = MyModel1(name='Testname 2')
+    obj_2_1 = MyModel2(title='Testtitle 1')
+    obj_2_2 = MyModel2(title='Testtitle 2')
+
+    database.add_object('mymodel_1.obj_1_1', obj_1_1)
+    database.add_object('mymodel_1.obj_1_2', obj_1_2)
+    database.add_object('mymodel_2.obj_2_1', obj_2_1)
+    database.add_object('mymodel_2.obj_2_2', obj_2_2)
+
+    assert database.get_one('mymodel_1.obj_1_1') is not None
+    assert database.get_one('mymodel_1.obj_1_2') is not None
+    assert database.get_one('mymodel_2.obj_2_1') is not None
+    assert database.get_one('mymodel_2.obj_2_2') is not None
+
+    assert len(database.get_all(MyModel1)) == 2
+    assert len(database.get_all(MyModel2)) == 2
+
+    assert len(database.get_all_values(MyModel1)) == 2
+    assert len(database.get_all_values(MyModel2)) == 2
+
+    assert len(database.get_all_values_for_all_types()) == 4
+
+
+def test_adding_invalid_object(database: Database) -> None:
+    """Test adding a object that has no type in the database."""
+    obj_3_1 = MyModel3(
+        title='non-existing-type', submodel=SubModel(title='test')
+    )
+    with pytest.raises(UnknownObjectTypeAddedError):
+        database.add_object('my_model_3.test', obj_3_1)
+
+
+def test_retrieving_non_exising_type(database: Database) -> None:
+    """Test if we get an error on requesting unkown types."""
+    with pytest.raises(UnknownObjectTypeRequestedError):
+        database.get_one('my_model_3.test')
+
+
+def test_retrieving_non_exising_object(database: Database) -> None:
+    """Test if we get an error when requesting data that doesn't exist."""
+    with pytest.raises(ObjectNotFoundError):
+        database.get_one('mymodel_1.non_existing')
+
+
+def test_error_on_adding_duplicates(database: Database) -> None:
+    """Test if we get errors on adding duplicate ids."""
+    obj_1_1 = MyModel1(name='Testname 1')
+    obj_1_2 = MyModel1(name='Testname 2')
+
+    database.add_object('mymodel_1.obj_1_1', obj_1_1)
+    with pytest.raises(DuplicateIdError):
+        database.add_object('mymodel_1.obj_1_1', obj_1_2)
+
+
+def test_resolving_objects_many_to_none(database: Database) -> None:
+    """Test if we can resolve objects (many-to-none)."""
+    obj_1_1 = MyModel1(
+        name='Testname 1',
+        my_model2_m2n=['mymodel_2.obj_2_1', 'mymodel_2.obj_2_2'],
+    )
+    obj_2_1 = MyModel2(title='Testname 2')
+    obj_2_2 = MyModel2(title='Testname 2')
+
+    database.add_object('mymodel_1.obj_1_1', obj_1_1)
+    database.add_object('mymodel_2.obj_2_1', obj_2_1)
+    database.add_object('mymodel_2.obj_2_2', obj_2_2)
+
+    database.resolve_all()
+
+    assert len(obj_1_1.my_model2_m2n_objects) == 2
+    assert obj_2_1 in obj_1_1.my_model2_m2n_objects
+    assert obj_2_2 in obj_1_1.my_model2_m2n_objects
+
+
+def test_resolving_objects_one_to_none(database: Database) -> None:
+    """Test if we can resolve objects (one-to-none)."""
+    obj_1_1 = MyModel1(
+        name='Testname 1',
+        my_model2_o2n='mymodel_2.obj_2_1',
+    )
+    obj_2_1 = MyModel2(title='Testname 2')
+
+    database.add_object('mymodel_1.obj_1_1', obj_1_1)
+    database.add_object('mymodel_2.obj_2_1', obj_2_1)
+
+    database.resolve_all()
+
+    assert obj_1_1.my_model2_o2n_object is not None
+    assert obj_1_1.my_model2_o2n_object is obj_2_1
+
+
+def test_resolving_objects_one_to_many(database: Database) -> None:
+    """Test if we can resolve objects (one-to-many)."""
+    obj_1_1 = MyModel1(
+        name='Testname 1',
+        my_model2_o2m='mymodel_2.obj_2_1',
+    )
+    obj_1_2 = MyModel1(
+        name='Testname 2',
+        my_model2_o2m='mymodel_2.obj_2_1',
+    )
+    obj_2_1 = MyModel2(title='Testname 2')
+
+    database.add_object('mymodel_1.obj_1_1', obj_1_1)
+    database.add_object('mymodel_1.obj_1_2', obj_1_2)
+    database.add_object('mymodel_2.obj_2_1', obj_2_1)
+
+    database.resolve_all()
+
+    assert obj_1_1.my_model2_o2m_object is not None
+    assert obj_1_1.my_model2_o2m_object is obj_2_1
+    assert obj_1_2.my_model2_o2m_object is not None
+    assert obj_1_2.my_model2_o2m_object is obj_2_1
+    assert len(obj_2_1.my_model1_o2m_objs_backlink) == 2
+    assert obj_1_1 in obj_2_1.my_model1_o2m_objs_backlink
+    assert obj_1_2 in obj_2_1.my_model1_o2m_objs_backlink
+
+
+def test_resolving_objects_many_to_many(database: Database) -> None:
+    """Test if we can resolve objects (one-to-many)."""
+    obj_1_1 = MyModel1(
+        name='Testname 1',
+        my_model2_m2m=['mymodel_2.obj_2_1', 'mymodel_2.obj_2_2'],
+    )
+    obj_1_2 = MyModel1(
+        name='Testname 2',
+        my_model2_m2m=['mymodel_2.obj_2_2'],
+    )
+    obj_2_1 = MyModel2(title='Testname 2')
+    obj_2_2 = MyModel2(title='Testname 2')
+
+    database.add_object('mymodel_1.obj_1_1', obj_1_1)
+    database.add_object('mymodel_1.obj_1_2', obj_1_2)
+    database.add_object('mymodel_2.obj_2_1', obj_2_1)
+    database.add_object('mymodel_2.obj_2_2', obj_2_2)
+
+    database.resolve_all()
+
+    assert len(obj_1_1.my_model2_m2m_objects) == 2
+    assert len(obj_1_2.my_model2_m2m_objects) == 1
+    assert obj_2_1 in obj_1_1.my_model2_m2m_objects
+    assert obj_2_2 in obj_1_1.my_model2_m2m_objects
+    assert obj_2_2 in obj_1_2.my_model2_m2m_objects
+
+    assert len(obj_2_1.my_model1_m2m_objs_backlink) == 1
+    assert len(obj_2_2.my_model1_m2m_objs_backlink) == 2
+    assert obj_1_1 in obj_2_1.my_model1_m2m_objs_backlink
+    assert obj_1_1 in obj_2_2.my_model1_m2m_objs_backlink
+    assert obj_1_2 in obj_2_2.my_model1_m2m_objs_backlink
+
+
+def test_resolving_child_objects() -> None:
+    """Test if we can resolve fields in child objects."""
+    database = Database(
+        models={
+            'mymodel_1': MyModel1,
+            'mymodel_2': MyModel2,
+            'mymodel_3': MyModel3,
+        }
+    )
+
+    obj_2_1 = MyModel2(title='Testname 2')
+    obj_3_1 = MyModel3(
+        title='test',
+        submodel=SubModel(title='test', my_model_2='mymodel_2.obj_2_1'),
+    )
+
+    database.add_object('mymodel_2.obj_2_1', obj_2_1)
+    database.add_object('mymodel_3.obj_3_1', obj_3_1)
+
+    database.resolve_all()
+
+    assert obj_3_1.submodel.my_model_2_obj is not None
+    assert obj_3_1.submodel.my_model_2_obj is obj_2_1
+    assert len(obj_2_1.my_model3_objs_backlinks) == 1
+    assert obj_3_1 in obj_2_1.my_model3_objs_backlinks
