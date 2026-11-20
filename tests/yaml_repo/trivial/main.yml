@@ -1,0 +1,11 @@
+mymodel_1.my_obj_1_1:
+  name: test-1
+
+mymodel_1.my_obj_1_2:
+  name: test-2
+---
+mymodel_1.my_obj_1_3:
+  name: test-3
+---
+_my_skipped_model.skipped:
+  name: test

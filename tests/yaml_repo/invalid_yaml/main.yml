@@ -1,0 +1,2 @@
+def invalid_file() -> None:
+  """Invalid yaml file."

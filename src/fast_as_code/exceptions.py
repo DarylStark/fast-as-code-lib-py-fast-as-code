@@ -64,3 +64,15 @@ class ObjectNotFoundError(DatabaseError):
         super().__init__(
             f'Unknown object requested from the database: "{obj_id}".'
         )
+
+
+class YamlRepoLoaderError(FastAsCodeError):
+    """Base class for all YamlRepoLoader errors."""
+
+
+class YamlLoadingError(YamlRepoLoaderError):
+    """Errors that occur while loading a Yaml file."""
+
+    def __init__(self, filename: str, error: str) -> None:
+        """Call the baseclass with the correct message."""
+        super().__init__(f'{filename}: {error}')
