@@ -1,10 +1,18 @@
 """Test configuration for PyTest."""
 
+from pathlib import Path
+
 import pytest
 from models import MyModel1, MyModel2
 
 from fast_as_code import DataImporter, FastAsCodeModel
 from fast_as_code.database import Database
+
+
+@pytest.fixture(scope='session')
+def yaml_repo_folder() -> Path:
+    """Fixture for the path of the simple project folder."""
+    return Path(__file__).parent / 'yaml_repo'
 
 
 @pytest.fixture(scope='function')

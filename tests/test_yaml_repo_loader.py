@@ -8,12 +8,6 @@ from fast_as_code import YamlRepoLoader
 from fast_as_code.exceptions import YamlLoadingError
 
 
-@pytest.fixture(scope='session')
-def yaml_repo_folder() -> Path:
-    """Fixture for the path of the simple project folder."""
-    return Path(__file__).parent / 'yaml_repo'
-
-
 def test_importing_data_trivial_dir(yaml_repo_folder: Path) -> None:
     """Test if we can import data."""
     loader = YamlRepoLoader(repo_path=yaml_repo_folder / 'trivial')

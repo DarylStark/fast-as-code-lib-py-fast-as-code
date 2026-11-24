@@ -82,6 +82,8 @@ class MyModel3(FastAsCodeModel):
     """Third test model."""
 
     title: str
+    city: str | None = None
+    age: int = 0
     submodel: SubModel
 
     resolvable_children: list[str] = ['submodel']
